@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "initialized": true,
+  "templates": {},
+  "sync": {
+    "autoSync": false
+  },
+  "features": {
+    "backup": true
+  }
+}

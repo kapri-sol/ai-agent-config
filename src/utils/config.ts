@@ -28,7 +28,7 @@ export class ConfigManager {
       const content = await fs.readFile(this.configPath, 'utf-8');
       return JSON.parse(content);
     } catch (error) {
-      throw new Error(`Failed to load configuration: ${error}`);
+      throw error;
     }
   }
 
@@ -36,7 +36,7 @@ export class ConfigManager {
     try {
       await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
     } catch (error) {
-      throw new Error(`Failed to save configuration: ${error}`);
+      throw error;
     }
   }
 

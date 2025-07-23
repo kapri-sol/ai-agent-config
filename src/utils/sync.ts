@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { ConfigManager } from './config';
+import { ConfigManager, validateInput } from './config';
 
 export interface SyncOptions {
   remote?: string;
@@ -27,8 +27,13 @@ export class SyncManager {
     }
 
     // Validate remote URL if provided
-    if (options.remote && !this.isValidUrl(options.remote)) {
+    if (options.remote && !validateInput(options.remote, 'url')) {
       throw new Error('Invalid remote URL provided.');
+    }
+
+    if (!options.pull && !options.push) {
+      options.pull = true;
+      options.push = true;
     }
 
     if (options.pull) {
@@ -37,15 +42,6 @@ export class SyncManager {
     }
 
     if (options.push) {
-      const pushChanges = await this.pushToRemote(options.remote, options.dryRun);
-      changes.push(...pushChanges);
-    }
-
-    // If no specific action, perform a full sync (pull then push)
-    if (!options.pull && !options.push) {
-      const pullChanges = await this.pullFromRemote(options.remote, options.dryRun);
-      changes.push(...pullChanges);
-      
       const pushChanges = await this.pushToRemote(options.remote, options.dryRun);
       changes.push(...pushChanges);
     }
@@ -102,7 +98,7 @@ export class SyncManager {
         changes.push('Merged remote configuration changes');
         
       } catch (error) {
-        throw new Error(`Failed to pull from remote: ${error}`);
+        throw error;
       }
     }
 
@@ -149,19 +145,10 @@ export class SyncManager {
         changes.push('Remote synchronization completed');
         
       } catch (error) {
-        throw new Error(`Failed to push to remote: ${error}`);
+        throw error;
       }
     }
 
     return changes;
-  }
-
-  private isValidUrl(url: string): boolean {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
   }
 }

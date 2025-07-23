@@ -61,7 +61,7 @@ export const statusCommand = new Command()
       if (options.json) {
         console.log(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }, null, 2));
       } else {
-        console.error('❌ Failed to get status:', error instanceof Error ? error.message : error);
+        console.error('❌ Failed to get status:', error);
       }
       process.exit(1);
     }

@@ -1,8 +1,27 @@
 import { SyncManager } from '../sync';
 import { ConfigManager } from '../config';
 
-// Mock ConfigManager
-jest.mock('../config');
+// Mock ConfigManager and validateInput
+jest.mock('../config', () => {
+  const actualConfig = jest.requireActual('../config');
+  return {
+    ConfigManager: jest.fn().mockImplementation(() => {
+      return {
+        exists: jest.fn(),
+        load: jest.fn(),
+        save: jest.fn(),
+        getStatus: jest.fn(),
+        updateSyncInfo: jest.fn(),
+      };
+    }),
+    validateInput: jest.fn((input: string, type: string) => {
+      if (type === 'url') {
+        return input.startsWith('http://') || input.startsWith('https://');
+      }
+      return actualConfig.validateInput(input, type);
+    }),
+  };
+});
 
 const MockedConfigManager = ConfigManager as jest.MockedClass<typeof ConfigManager>;
 
@@ -12,7 +31,7 @@ describe('SyncManager', () => {
 
   beforeEach(() => {
     mockConfigManager = new MockedConfigManager() as jest.Mocked<ConfigManager>;
-    MockedConfigManager.mockImplementation(() => mockConfigManager);
+    (ConfigManager as jest.Mock).mockImplementation(() => mockConfigManager);
     syncManager = new SyncManager();
     jest.clearAllMocks();
   });

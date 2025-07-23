@@ -51,7 +51,7 @@ export const initCommand = new Command()
       console.log(`   - Customize prompts.yaml for your use case`);
       
     } catch (error) {
-      console.error('❌ Failed to initialize configuration:', error instanceof Error ? error.message : error);
+      console.error('❌ Failed to initialize configuration:', error);
       process.exit(1);
     }
   });

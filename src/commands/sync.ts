@@ -74,7 +74,7 @@ export const syncCommand = new Command()
       }
       
     } catch (error) {
-      console.error('❌ Failed to synchronize configuration:', error instanceof Error ? error.message : error);
+      console.error('❌ Failed to synchronize configuration:', error);
       console.log('\n💡 Troubleshooting tips:');
       console.log('  • Ensure you have initialized configuration with "agent-config init"');
       console.log('  • Check that the remote URL is accessible');

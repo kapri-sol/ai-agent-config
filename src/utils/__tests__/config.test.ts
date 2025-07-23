@@ -88,7 +88,7 @@ describe('ConfigManager', () => {
     test('throws error when file cannot be read', async () => {
       mockedFs.readFile.mockRejectedValue(new Error('Permission denied'));
       
-      await expect(configManager.load()).rejects.toThrow('Failed to load configuration');
+      await expect(configManager.load()).rejects.toThrow('Permission denied');
     });
   });
 
@@ -123,7 +123,7 @@ describe('ConfigManager', () => {
       
       mockedFs.writeFile.mockRejectedValue(new Error('Permission denied'));
       
-      await expect(configManager.save(mockConfig)).rejects.toThrow('Failed to save configuration');
+      await expect(configManager.save(mockConfig)).rejects.toThrow('Permission denied');
     });
   });
 
