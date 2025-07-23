@@ -1,0 +1,36 @@
+{
+  "name": "agent-config",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "bin": {
+    "agent-config": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kapri-sol/ai-agent-config.git"
+  },
+  "keywords": ["ai", "agent", "configuration", "cli", "automation"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kapri-sol/ai-agent-config/issues"
+  },
+  "homepage": "https://github.com/kapri-sol/ai-agent-config#readme",
+  "description": "AI Agent Configuration Management CLI Tool",
+  "dependencies": {
+    "commander": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
