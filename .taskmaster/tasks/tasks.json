@@ -9,7 +9,7 @@
         "testStrategy": "CLI 명령어 파싱 테스트, 설정 파일 로딩/저장 테스트, 환경별 오버라이드 동작 검증",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -26,7 +26,7 @@
             "description": "설정 시스템의 핵심 타입 정의와 모듈화된 프로젝트 구조를 구축합니다.",
             "dependencies": [],
             "details": "ConfigSchema, EnvironmentConfig, ValidationResult 등 핵심 인터페이스 정의, src/types/, src/config/, src/utils/ 디렉토리 구조 설계, 모듈 export/import 체계 구축, 타입 안전성을 보장하는 유틸리티 함수 구현을 포함합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -184,7 +184,7 @@
     ],
     "metadata": {
       "created": "2025-07-23T12:24:38.370Z",
-      "updated": "2025-07-23T12:49:03.748Z",
+      "updated": "2025-07-23T14:50:33.846Z",
       "description": "Tasks for master context"
     }
   }
