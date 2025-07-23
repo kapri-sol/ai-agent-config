@@ -102,8 +102,7 @@ export class ConfigManager {
 
     // Calculate health score
     const healthScore = this.calculateHealthScore(config, configFiles);
-    const issues = this.identifyIssues(config);
-    const recommendations = this.generateRecommendations(config, issues);
+    const { issues, recommendations } = this.getHealthDetails(config);
 
     return {
       initialized: config.initialized,
@@ -246,11 +245,13 @@ templates:
   }
 
   async validateConfiguration(config?: AgentConfig): Promise<ValidationResult> {
+    const startTime = process.hrtime.bigint();
     const configToValidate = config || await this.load();
     const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [];
+    let rulesApplied = 0;
 
     // Version validation
+    rulesApplied++;
     if (!configToValidate.version || !/^\d+\.\d+\.\d+$/.test(configToValidate.version)) {
       errors.push({
         field: 'version',
@@ -262,6 +263,7 @@ templates:
     }
 
     // Template validation
+    rulesApplied++;
     if (!configToValidate.templates || Object.keys(configToValidate.templates).length === 0) {
       errors.push({
         field: 'templates',
@@ -274,6 +276,7 @@ templates:
 
     // Environment validation
     if (configToValidate.environment) {
+      rulesApplied++;
       if (!['development', 'staging', 'production'].includes(configToValidate.environment.type)) {
         errors.push({
           field: 'environment.type',
@@ -284,86 +287,77 @@ templates:
       }
     }
 
+    const durationInMs = Number(process.hrtime.bigint() - startTime) / 1e6;
+
     return {
       valid: errors.length === 0,
       errors,
-      warnings,
+      warnings: [],
       metadata: {
         timestamp: new Date().toISOString(),
-        duration: 0,
-        rulesApplied: 3,
+        duration: durationInMs,
+        rulesApplied,
         version: configToValidate.version
       }
     };
   }
 
   private calculateHealthScore(config: AgentConfig, configFiles: string[]): number {
-    let score = 0;
     const maxScore = 100;
+    const points = {
+      INITIALIZED: 20,
+      HAS_TEMPLATES: 15,
+      HAS_SYNC: 10,
+      HAS_FEATURES: 5,
+      CONFIG_FILE_EXISTS: 10,
+      PROMPTS_FILE_EXISTS: 10,
+      HAS_ENVIRONMENT: 10,
+      HAS_VALIDATION: 10,
+      AUTOSYNC_ENABLED: 5,
+      BACKUP_ENABLED: 5,
+    };
 
-    // Basic initialization (20 points)
-    if (config.initialized) score += 20;
+    let score = 0;
 
-    // Configuration completeness (30 points)
-    if (config.templates && Object.keys(config.templates).length > 0) score += 15;
-    if (config.sync) score += 10;
-    if (config.features) score += 5;
-
-    // File presence (20 points)
-    if (configFiles.includes(CONFIG_FILE)) score += 10;
-    if (configFiles.includes(PROMPTS_FILE)) score += 10;
-
-    // Advanced features (30 points)
-    if (config.environment) score += 10;
-    if (config.validation) score += 10;
-    if (config.sync?.autoSync) score += 5;
-    if (config.sync?.backupBeforeSync) score += 5;
+    if (config.initialized) score += points.INITIALIZED;
+    if (config.templates && Object.keys(config.templates).length > 0) score += points.HAS_TEMPLATES;
+    if (config.sync) score += points.HAS_SYNC;
+    if (config.features) score += points.HAS_FEATURES;
+    if (configFiles.includes(CONFIG_FILE)) score += points.CONFIG_FILE_EXISTS;
+    if (configFiles.includes(PROMPTS_FILE)) score += points.PROMPTS_FILE_EXISTS;
+    if (config.environment) score += points.HAS_ENVIRONMENT;
+    if (config.validation) score += points.HAS_VALIDATION;
+    if (config.sync?.autoSync) score += points.AUTOSYNC_ENABLED;
+    if (config.sync?.backupBeforeSync) score += points.BACKUP_ENABLED;
 
     return Math.min(score, maxScore);
   }
 
-  private identifyIssues(config: AgentConfig): string[] {
+  private getHealthDetails(config: AgentConfig): { issues: string[], recommendations: string[] } {
     const issues: string[] = [];
+    const recommendations: string[] = [];
 
     if (!config.sync?.lastSync) {
       issues.push('No sync history found');
+      recommendations.push('Set up remote synchronization for backup');
     }
 
     if (!config.environment) {
       issues.push('Environment configuration missing');
+      recommendations.push('Configure environment settings for better organization');
     }
 
     if (!config.validation) {
       issues.push('Validation configuration not set up');
+      recommendations.push('Enable validation for better configuration management');
     }
 
     if (Object.keys(config.features).length === 0) {
       issues.push('No features enabled');
-    }
-
-    return issues;
-  }
-
-  private generateRecommendations(config: AgentConfig, issues: string[]): string[] {
-    const recommendations: string[] = [];
-
-    if (issues.includes('No sync history found')) {
-      recommendations.push('Set up remote synchronization for backup');
-    }
-
-    if (issues.includes('Environment configuration missing')) {
-      recommendations.push('Configure environment settings for better organization');
-    }
-
-    if (issues.includes('Validation configuration not set up')) {
-      recommendations.push('Enable validation for better configuration management');
-    }
-
-    if (issues.includes('No features enabled')) {
       recommendations.push('Enable useful features like autoComplete and validation');
     }
 
-    return recommendations;
+    return { issues, recommendations };
   }
 }
 
