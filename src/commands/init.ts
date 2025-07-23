@@ -18,6 +18,6 @@ export const initCommand = new Command()
       console.log('✅ Agent configuration initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize configuration:', error);
-      process.exit(1);
+      throw new Error('Failed to initialize configuration', { cause: error });
     }
   });

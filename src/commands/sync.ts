@@ -31,6 +31,6 @@ export const syncCommand = new Command()
       console.log('✅ Synchronization completed successfully');
     } catch (error) {
       console.error('❌ Failed to synchronize configuration:', error);
-      process.exit(1);
+      throw new Error('Failed to synchronize configuration', { cause: error });
     }
   });

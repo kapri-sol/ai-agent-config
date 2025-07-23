@@ -37,6 +37,6 @@ export const statusCommand = new Command()
       
     } catch (error) {
       console.error('❌ Failed to get status:', error);
-      process.exit(1);
+      throw new Error('Failed to get status', { cause: error });
     }
   });
