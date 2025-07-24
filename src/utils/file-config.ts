@@ -414,7 +414,7 @@ export class FileConfigManager {
   /**
    * Get specific configuration template
    */
-  async revertInitialize(template: string = 'default', force: boolean = false): Promise<void> {
+  async revertInitialize(): Promise<void> {
     const targetPath = this.globalConfigPath;
     const localPath = this.localConfigPath;
 
