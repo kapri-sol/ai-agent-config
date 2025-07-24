@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml';
 import * as fs from 'fs-extra';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
-import { AgentConfig, EnvironmentConfig, ValidationResult, ValidationError } from '../types';
+import { AgentConfig, ValidationWarning, ValidationResult, ValidationError } from '../types';
 
 export type ConfigFormat = 'yaml' | 'json';
 

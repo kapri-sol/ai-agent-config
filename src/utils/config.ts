@@ -4,7 +4,6 @@ import {
   AgentConfig, 
   ConfigStatus, 
   TemplateConfig,
-  TemplateFile,
   ValidationResult,
   ValidationError,
   ValidationWarning
