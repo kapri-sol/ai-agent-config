@@ -41,7 +41,7 @@ export class ConfigManager {
   }
 
   async save(config: AgentConfig, path?: string): Promise<void> {
-    await this.fileConfigManager.save(config, path);
+    await this.fileConfigManager.save(config, path, { backup: true });
   }
 
   async initialize(template: string = 'default', force: boolean = false): Promise<void> {

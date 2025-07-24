@@ -223,7 +223,7 @@ describe('ConfigManager', () => {
       mockFileConfigManager.loadMerged.mockResolvedValue(mockConfig);
       mockedFs.access.mockResolvedValue(undefined);
       mockFileConfigManager.exists.mockImplementation(async (path) => {
-        if (path === '/mock/global/config.yml' || path === '/mock/local/agent.config.yml') {
+        if (path === '/mock/global/config.yml' || path === '/mock/local/agent.config.yml' || path === '/test/dir/prompts.yaml') {
           return true;
         }
         return false;
