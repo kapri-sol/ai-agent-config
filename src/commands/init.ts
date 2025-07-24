@@ -8,18 +8,13 @@ export const initCommand = new Command()
   .option('-f, --force', 'Force initialization even if configuration already exists')
   .option('-t, --template <type>', 'Initialize with a specific template', 'default')
   .option('--format <format>', 'Configuration file format (yaml|json)', 'yaml')
+  .choices(['yaml', 'json'])
   .action(async (options) => {
     console.log('🚀 Initializing agent configuration...');
     
     // Validate template input
     if (!validateInput(options.template, 'template')) {
       console.error('❌ Invalid template name. Use only letters, numbers, hyphens, and underscores.');
-      process.exit(1);
-    }
-
-    // Validate format input
-    if (!['yaml', 'json'].includes(options.format)) {
-      console.error('❌ Invalid format. Use "yaml" or "json".');
       process.exit(1);
     }
     

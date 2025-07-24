@@ -53,7 +53,7 @@ export class ConfigManager {
       const templateConfig = this.getTemplate(template);
       await this.createPromptsFile(templateConfig);
     } catch (error) {
-      throw new Error(`Failed to initialize configuration: ${(error as Error).message}`);
+      throw new Error(`Failed to initialize configuration: ${(error as Error).message}`, { cause: error });
     }
   }
 
@@ -80,10 +80,10 @@ export class ConfigManager {
     
     // Check for various configuration files
     if (await this.fileConfigManager.exists(paths.global)) {
-      configFiles.push('global config');
+      configFiles.push(paths.global);
     }
     if (await this.fileConfigManager.exists(paths.local)) {
-      configFiles.push('local config');
+      configFiles.push(paths.local);
     }
     if (await this.fileConfigManager.exists(this.promptsPath)) {
       configFiles.push(PROMPTS_FILE);
@@ -272,7 +272,7 @@ templates:
         }
       };
     } catch (error) {
-      throw new Error(`Validation failed: ${(error as Error).message}`);
+      throw new Error(`Validation failed: ${(error as Error).message}`, { cause: error });
     }
   }
 
@@ -371,7 +371,6 @@ templates:
   }
 
   async convertFormat(targetFormat: ConfigFormat, path?: string): Promise<void> {
-    const config = await this.load();
     const targetPath = path || (targetFormat === 'yaml' ? 
       this.getPaths().local.replace(/\.json$/, '.yml') : 
       this.getPaths().local.replace(/\.yml$/, '.json'));

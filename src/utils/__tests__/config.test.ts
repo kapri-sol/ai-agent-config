@@ -177,7 +177,7 @@ describe('ConfigManager', () => {
       mockFileConfigManager.initialize.mockRejectedValue(new Error('Configuration already exists. Use force=true to overwrite.'));
       
       await expect(configManager.initialize('default', false)).rejects.toThrow(
-        'Failed to initialize configuration'
+        'Failed to initialize configuration: Configuration already exists. Use force=true to overwrite.'
       );
     });
 
@@ -195,7 +195,7 @@ describe('ConfigManager', () => {
       mockFileConfigManager.initialize.mockRejectedValue(new Error("Template 'invalid-template' not found"));
       
       await expect(configManager.initialize('invalid-template')).rejects.toThrow(
-        'Failed to initialize configuration'
+        "Failed to initialize configuration: Template 'invalid-template' not found"
       );
     });
   });
