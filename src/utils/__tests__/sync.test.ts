@@ -91,7 +91,12 @@ describe('SyncManager', () => {
         initialized: true,
         configFiles: ['agent.config.json', 'prompts.yaml'],
         version: '1.0.0',
-        features: []
+        features: [],
+        health: {
+          score: 85,
+          issues: [],
+          recommendations: []
+        }
       });
       mockConfigManager.updateSyncInfo.mockResolvedValue(undefined);
 
@@ -133,7 +138,12 @@ describe('SyncManager', () => {
         initialized: true,
         configFiles: ['agent.config.json'],
         version: '1.0.0',
-        features: []
+        features: [],
+        health: {
+          score: 75,
+          issues: ['No prompts file found'],
+          recommendations: ['Add prompts.yaml file']
+        }
       });
       mockConfigManager.updateSyncInfo.mockResolvedValue(undefined);
 
