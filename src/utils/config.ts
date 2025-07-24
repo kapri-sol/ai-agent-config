@@ -274,7 +274,7 @@ templates:
           timestamp: new Date().toISOString(),
           duration: durationInMs + enhancedValidation.metadata.duration,
           rulesApplied,
-          version: configToValidate.version || '1.0.0'
+          version: configToValidate.version
         }
       };
     } catch (error) {
