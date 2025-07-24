@@ -55,7 +55,7 @@ export class ConfigManager {
         await this.createPromptsFile(templateConfig);
       } catch (promptsError) {
         // If prompts file creation fails, attempt to revert config initialization
-        await this.fileConfigManager.revertInitialize(template, force);
+        await this.fileConfigManager.revertInitialize();
         throw new Error(`Failed to create prompts file: ${(promptsError as Error).message}`, { cause: promptsError });
       }
     } catch (error) {
