@@ -270,7 +270,7 @@ export class FileConfigManager {
   async validate(path?: string): Promise<ValidationResult> {
     const targetPath = path || this.globalConfigPath;
     const errors: ValidationError[] = [];
-    const warnings: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
 
     try {
       const config = await this.load(targetPath);
