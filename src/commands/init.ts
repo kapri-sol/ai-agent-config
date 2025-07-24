@@ -36,7 +36,6 @@ if (options.env && !['development', 'staging', 'production', 'test'].includes(op
   console.error('❌ Invalid environment. Use one of: development, staging, production, or test.');
   process.exit(1);
 }
-    }
     
     console.log(`📋 Template: ${options.template}`);
     console.log(`📄 Format: ${options.format}`);
