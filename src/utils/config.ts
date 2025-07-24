@@ -8,7 +8,7 @@ import {
   ValidationError,
   ValidationWarning
 } from '../types';
-import { FileConfigManager, ConfigFormat } from './file-config';
+import { FileConfigManager, ConfigFormat, convertConfigFormat } from './file-config';
 
 export const CONFIG_FILE = 'agent.config.json';
 export const PROMPTS_FILE = 'prompts.yaml';
@@ -371,7 +371,12 @@ templates:
   }
 
   async convertFormat(targetFormat: ConfigFormat, path?: string): Promise<void> {
-    await this.fileConfigManager.convertFormat(targetFormat, path);
+    const config = await this.load();
+    const targetPath = path || (targetFormat === 'yaml' ? 
+      this.getPaths().local.replace(/\.json$/, '.yml') : 
+      this.getPaths().local.replace(/\.yml$/, '.json'));
+    
+    await convertConfigFormat(this.getPaths().local, targetPath, targetFormat);
   }
 }
 
