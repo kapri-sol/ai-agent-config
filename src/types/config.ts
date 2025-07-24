@@ -75,7 +75,11 @@ export interface TemplateFile {
   content: string;
   permissions?: string;
   encoding?: string;
-  conditional?: string; // Condition for including this file
+  conditional?: {
+    variable: string;
+    operator: 'equals' | 'notEquals' | 'contains';
+    value: any;
+  }; // Condition for including this file
 }
 
 /**
