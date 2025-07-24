@@ -2,14 +2,24 @@ import { Command } from 'commander';
 import { ConfigManager, validateInput } from '../utils/config';
 import { ConfigFormat } from '../utils/file-config';
 
+interface InitCommandOptions {
+  force?: boolean;
+  template: string;
+  format: ConfigFormat;
+}
+
 export const initCommand = new Command()
   .name('init')
   .description('Initialize agent configuration in the current directory')
   .option('-f, --force', 'Force initialization even if configuration already exists')
   .option('-t, --template <type>', 'Initialize with a specific template', 'default')
   .option('--format <format>', 'Configuration file format (yaml|json)', 'yaml')
-  .choices(['yaml', 'json'])
-  .action(async (options) => {
+  .action(async (options: InitCommandOptions) => {
+    // Validate format input manually if .choices() is not working as expected
+    if (!['yaml', 'json'].includes(options.format)) {
+      console.error('❌ Invalid format. Use "yaml" or "json".');
+      process.exit(1);
+    }
     console.log('🚀 Initializing agent configuration...');
     
     // Validate template input
@@ -53,7 +63,8 @@ export const initCommand = new Command()
         console.log(`   - workflows.yaml`);
       }
       
-      console.log(`\n🎯 Next steps:`);
+      console.log(`
+🎯 Next steps:`);
       console.log(`   - Review the generated configuration files`);
       console.log(`   - Run 'agent-config status' to check configuration`);
       console.log(`   - Customize your configuration as needed`);
