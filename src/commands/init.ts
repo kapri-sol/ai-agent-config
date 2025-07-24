@@ -15,7 +15,7 @@ export const initCommand = new Command()
   .option('-t, --template <type>', 'Initialize with a specific template', 'default')
   .option('--format <format>', 'Configuration file format (yaml|json)', 'yaml')
   .action(async (options: InitCommandOptions) => {
-    // Validate format input manually if .choices() is not working as expected
+    // Manually validate format input as .choices() causes build failures
     if (!['yaml', 'json'].includes(options.format)) {
       console.error('❌ Invalid format. Use "yaml" or "json".');
       process.exit(1);
