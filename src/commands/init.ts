@@ -32,9 +32,10 @@ export const initCommand = new Command()
     }
 
     // Validate environment input
-    if (options.env && !['development', 'staging', 'production', 'test'].includes(options.env)) {
-      console.error('❌ Invalid environment. Use "development", "staging", "production", or "test".');
-      process.exit(1);
+if (options.env && !['development', 'staging', 'production', 'test'].includes(options.env)) {
+  console.error('❌ Invalid environment. Use one of: development, staging, production, or test.');
+  process.exit(1);
+}
     }
     
     console.log(`📋 Template: ${options.template}`);
