@@ -44,7 +44,7 @@
             "description": "개발/스테이징/프로덕션 환경에 따른 설정 오버라이드 메커니즘을 구현합니다.",
             "dependencies": [],
             "details": "환경 변수 감지 로직, 환경별 설정 파일 우선순위 정의 (config.local.yml > config.dev.yml > config.yml), 설정 병합 알고리즘 구현, 환경별 설정 검증, 오버라이드 상태 시각화 기능을 포함합니다.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -184,7 +184,7 @@
     ],
     "metadata": {
       "created": "2025-07-23T12:24:38.370Z",
-      "updated": "2025-07-24T12:59:51.657Z",
+      "updated": "2025-07-24T13:31:45.160Z",
       "description": "Tasks for master context"
     }
   }

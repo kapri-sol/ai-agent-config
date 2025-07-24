@@ -251,15 +251,90 @@ templates:
       const warnings: ValidationWarning[] = [...enhancedValidation.warnings];
       let rulesApplied = enhancedValidation.metadata.rulesApplied;
 
-      // Additional business rules validation
+      // Environment-specific validation
       if (configToValidate.environment) {
         rulesApplied++;
+        
+        // Validate environment type
         if (!ENVIRONMENT_TYPES.includes(configToValidate.environment.type)) {
           errors.push({
             field: 'environment.type',
-            message: 'Environment type must be development, staging, or production',
+            message: 'Environment type must be development, staging, production, or test',
             code: 'INVALID_ENVIRONMENT_TYPE',
             severity: 'error'
+          });
+        }
+
+        // Production environment specific validation
+        if (configToValidate.environment.type === 'production') {
+          rulesApplied += 2;
+          
+          if (!configToValidate.environment.security?.encryptionEnabled) {
+            warnings.push({
+              field: 'environment.security.encryptionEnabled',
+              message: 'Encryption should be enabled in production environment',
+              code: 'PRODUCTION_ENCRYPTION_RECOMMENDED',
+              suggestion: 'Set environment.security.encryptionEnabled to true'
+            });
+          }
+
+          if (configToValidate.features?.debug) {
+            warnings.push({
+              field: 'features.debug',
+              message: 'Debug mode should be disabled in production environment',
+              code: 'PRODUCTION_DEBUG_WARNING',
+              suggestion: 'Set features.debug to false for production'
+            });
+          }
+        }
+
+        // Development environment specific validation
+        if (configToValidate.environment.type === 'development') {
+          rulesApplied++;
+          
+          if (configToValidate.sync?.autoSync) {
+            warnings.push({
+              field: 'sync.autoSync',
+              message: 'Auto-sync is typically disabled in development environment',
+              code: 'DEVELOPMENT_AUTOSYNC_WARNING',
+              suggestion: 'Consider setting sync.autoSync to false for development'
+            });
+          }
+        }
+
+        // Validate environment paths exist
+        if (configToValidate.environment.paths) {
+          rulesApplied++;
+          const requiredPaths: (keyof typeof configToValidate.environment.paths)[] = ['config', 'templates', 'cache', 'logs'];
+          
+          requiredPaths.forEach(pathKey => {
+            if (!configToValidate.environment?.paths[pathKey]) {
+              errors.push({
+                field: `environment.paths.${pathKey}`,
+                message: `Environment path '${pathKey}' is required`,
+                code: 'MISSING_ENVIRONMENT_PATH',
+                severity: 'error'
+              });
+            }
+          });
+        }
+
+        // Validate trusted sources in security config
+        if (configToValidate.environment.security?.trustedSources) {
+          rulesApplied++;
+          const trustedSources = configToValidate.environment.security.trustedSources;
+          
+          trustedSources.forEach((source, index) => {
+            try {
+              new URL(source.replace('*', 'example.com')); // Allow wildcards
+            } catch {
+              errors.push({
+                field: `environment.security.trustedSources[${index}]`,
+                message: `Invalid URL format in trusted sources: ${source}`,
+                code: 'INVALID_TRUSTED_SOURCE_URL',
+                severity: 'error'
+              });
+            }
           });
         }
       }
@@ -374,6 +449,27 @@ templates:
 
   getPaths() {
     return this.fileConfigManager.getPaths();
+  }
+
+  /**
+   * Get environment-aware configuration paths
+   */
+  getEnvironmentPaths() {
+    return this.fileConfigManager.getEnvironmentPaths();
+  }
+
+  /**
+   * Get current environment information
+   */
+  getEnvironmentInfo() {
+    return this.fileConfigManager.getEnvironmentInfo();
+  }
+
+  /**
+   * Get configuration override status for visualization
+   */
+  async getOverrideStatus() {
+    return await this.fileConfigManager.getOverrideStatus();
   }
 
   async convertFormat(targetFormat: ConfigFormat, path?: string): Promise<void> {
