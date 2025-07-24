@@ -51,7 +51,13 @@ export class ConfigManager {
       
       // Create prompts file with template-specific content
       const templateConfig = this.getTemplate(template);
-      await this.createPromptsFile(templateConfig);
+      try {
+        await this.createPromptsFile(templateConfig);
+      } catch (promptsError) {
+        // If prompts file creation fails, attempt to revert config initialization
+        await this.fileConfigManager.revertInitialize(template, force);
+        throw new Error(`Failed to create prompts file: ${(promptsError as Error).message}`, { cause: promptsError });
+      }
     } catch (error) {
       throw new Error(`Failed to initialize configuration: ${(error as Error).message}`, { cause: error });
     }

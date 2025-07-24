@@ -414,6 +414,18 @@ export class FileConfigManager {
   /**
    * Get specific configuration template
    */
+  async revertInitialize(template: string = 'default', force: boolean = false): Promise<void> {
+    const targetPath = this.globalConfigPath;
+    const localPath = this.localConfigPath;
+
+    if (await this.exists(targetPath)) {
+      await fs.remove(targetPath);
+    }
+    if (await this.exists(localPath)) {
+      await fs.remove(localPath);
+    }
+  }
+
   private getDefaultConfigTemplate(templateName: string): AgentConfig {
     const baseConfig = this.getDefaultConfig();
     
