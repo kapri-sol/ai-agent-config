@@ -34,8 +34,8 @@
             "title": "YAML/JSON 설정 파일 시스템 구현",
             "description": "YAML과 JSON 형식의 설정 파일을 읽고 쓰는 핵심 시스템을 구현합니다.",
             "dependencies": [],
-            "details": "js-yaml, fs-extra 라이브러리 활용, ~/.config/aisync/config.yml 경로 관리, 설정 파일 읽기/쓰기/병합 함수 구현, 기본 설정 템플릿 생성, 설정 파일 백업 및 복원 기능을 포함합니다.",
-            "status": "pending",
+            "details": "js-yaml, fs-extra 라이브러리 활용, ~/.config/aisync/config.yml 경로 관리, 설정 파일 읽기/쓰기/병합 함수 구현, 기본 설정 템플릿 생성, 설정 파일 백업 및 복원 기능을 포함합니다.\n<info added on 2025-07-24T12:59:46.924Z>\n**구현 완료 상태:**\nFileConfigManager와 ConfigManager가 성공적으로 통합되어 YAML/JSON 이중 지원 체계가 완성되었습니다. CLI 명령어에 --format 플래그가 추가되어 형식 선택이 가능하며, 기존 JSON 설정과의 하위 호환성이 유지됩니다. 설정 병합 우선순위(로컬 > 전역 > 기본값)가 적용되고, 자동 백업/복원 시스템이 작동합니다. 템플릿 시스템(default, claude, enterprise)과 자동 형식 감지 기능이 구현되었습니다. init 및 status 명령어가 다중 설정 파일을 지원하도록 업데이트되고, 모든 기존 CLI 기능과의 호환성이 확인되었습니다. 전체 테스트 22개가 통과하여 품질이 검증되었으며, TypeScript 빌드 오류 없이 완료되었습니다.\n</info added on 2025-07-24T12:59:46.924Z>",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -184,7 +184,7 @@
     ],
     "metadata": {
       "created": "2025-07-23T12:24:38.370Z",
-      "updated": "2025-07-23T14:50:33.846Z",
+      "updated": "2025-07-24T12:59:51.657Z",
       "description": "Tasks for master context"
     }
   }

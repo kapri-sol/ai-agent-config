@@ -1,12 +1,25 @@
 import { Command } from 'commander';
 import { ConfigManager, validateInput } from '../utils/config';
+import { ConfigFormat } from '../utils/file-config';
+
+interface InitCommandOptions {
+  force?: boolean;
+  template: string;
+  format: ConfigFormat;
+}
 
 export const initCommand = new Command()
   .name('init')
   .description('Initialize agent configuration in the current directory')
   .option('-f, --force', 'Force initialization even if configuration already exists')
   .option('-t, --template <type>', 'Initialize with a specific template', 'default')
-  .action(async (options) => {
+  .option('--format <format>', 'Configuration file format (yaml|json)', 'yaml')
+  .action(async (options: InitCommandOptions) => {
+    // Manually validate format input as .choices() causes build failures
+    if (!['yaml', 'json'].includes(options.format)) {
+      console.error('❌ Invalid format. Use "yaml" or "json".');
+      process.exit(1);
+    }
     console.log('🚀 Initializing agent configuration...');
     
     // Validate template input
@@ -16,12 +29,13 @@ export const initCommand = new Command()
     }
     
     console.log(`📋 Template: ${options.template}`);
+    console.log(`📄 Format: ${options.format}`);
     
     if (options.force) {
       console.log('🔄 Force mode enabled - overwriting existing configuration');
     }
     
-    const configManager = new ConfigManager();
+    const configManager = new ConfigManager(process.cwd(), options.format as ConfigFormat);
     
     try {
       // Check if configuration already exists
@@ -37,18 +51,24 @@ export const initCommand = new Command()
       await configManager.initialize(options.template, options.force);
       
       console.log('✅ Agent configuration initialized successfully');
+      
+      // Get paths to show user what was created
+      const paths = configManager.getPaths();
       console.log(`📁 Created configuration files:`);
-      console.log(`   - agent.config.json`);
+      console.log(`   - Global: ${paths.global}`);
+      console.log(`   - Local: ${paths.local}`);
       console.log(`   - prompts.yaml`);
       
       if (options.template === 'advanced') {
         console.log(`   - workflows.yaml`);
       }
       
-      console.log(`\n🎯 Next steps:`);
+      console.log(`
+🎯 Next steps:`);
       console.log(`   - Review the generated configuration files`);
       console.log(`   - Run 'agent-config status' to check configuration`);
-      console.log(`   - Customize prompts.yaml for your use case`);
+      console.log(`   - Customize your configuration as needed`);
+      console.log(`   - Use '--format json' for JSON format or '--format yaml' for YAML format`);
       
     } catch (error) {
       console.error('❌ Failed to initialize configuration:', error);

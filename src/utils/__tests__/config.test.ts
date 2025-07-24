@@ -2,12 +2,51 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { ConfigManager, validateInput } from '../config';
 
-// Mock fs module
+// Mock fs and fs-extra modules
 jest.mock('fs', () => ({
   promises: {
     access: jest.fn(),
     readFile: jest.fn(),
     writeFile: jest.fn(),
+  }
+}));
+
+jest.mock('fs-extra', () => ({
+  promises: jest.fn(),
+  pathExists: jest.fn(),
+  readFile: jest.fn(),
+  writeFile: jest.fn(),
+  ensureDir: jest.fn(),
+  copy: jest.fn(),
+  remove: jest.fn(),
+  stat: jest.fn(),
+  readdir: jest.fn(),
+}));
+
+// Create mock instances for FileConfigManager
+const mockFileConfigManager = {
+  exists: jest.fn(),
+  load: jest.fn(),
+  save: jest.fn(),
+  loadMerged: jest.fn(),
+  initialize: jest.fn(),
+  validate: jest.fn(),
+  createBackup: jest.fn(),
+  listBackups: jest.fn(),
+  restoreFromBackup: jest.fn(),
+  getPaths: jest.fn(() => ({
+    global: '/mock/global/config.yml',
+    local: '/mock/local/agent.config.yml',
+    backup: '/mock/backup'
+  }))
+};
+
+// Mock the FileConfigManager
+jest.mock('../file-config', () => ({
+  FileConfigManager: jest.fn().mockImplementation(() => mockFileConfigManager),
+  ConfigFormat: {
+    yaml: 'yaml',
+    json: 'json'
   }
 }));
 
@@ -50,16 +89,15 @@ describe('ConfigManager', () => {
 
   describe('exists', () => {
     test('returns true when config file exists', async () => {
-      mockedFs.access.mockResolvedValue(undefined);
+      mockFileConfigManager.exists.mockResolvedValue(true);
       
       const exists = await configManager.exists();
       
       expect(exists).toBe(true);
-      expect(mockedFs.access).toHaveBeenCalledWith(join(testDir, 'agent.config.json'));
     });
 
     test('returns false when config file does not exist', async () => {
-      mockedFs.access.mockRejectedValue(new Error('File not found'));
+      mockFileConfigManager.exists.mockResolvedValue(false);
       
       const exists = await configManager.exists();
       
@@ -77,18 +115,18 @@ describe('ConfigManager', () => {
         features: {}
       };
       
-      mockedFs.readFile.mockResolvedValue(JSON.stringify(mockConfig));
+      mockFileConfigManager.loadMerged.mockResolvedValue(mockConfig);
       
       const config = await configManager.load();
       
       expect(config).toEqual(mockConfig);
-      expect(mockedFs.readFile).toHaveBeenCalledWith(join(testDir, 'agent.config.json'), 'utf-8');
     });
 
     test('throws error when file cannot be read', async () => {
+      mockFileConfigManager.loadMerged.mockRejectedValue(new Error('Failed to load configuration'));
       mockedFs.readFile.mockRejectedValue(new Error('Permission denied'));
       
-      await expect(configManager.load()).rejects.toThrow('Permission denied');
+      await expect(configManager.load()).rejects.toThrow('Failed to load configuration');
     });
   });
 
@@ -102,14 +140,11 @@ describe('ConfigManager', () => {
         features: {}
       };
       
-      mockedFs.writeFile.mockResolvedValue(undefined);
+      mockFileConfigManager.save.mockResolvedValue(undefined);
       
       await configManager.save(mockConfig);
       
-      expect(mockedFs.writeFile).toHaveBeenCalledWith(
-        join(testDir, 'agent.config.json'),
-        JSON.stringify(mockConfig, null, 2)
-      );
+      expect(mockFileConfigManager.save).toHaveBeenCalledWith(mockConfig, undefined, { backup: true });
     });
 
     test('throws error when file cannot be written', async () => {
@@ -121,51 +156,53 @@ describe('ConfigManager', () => {
         features: {}
       };
       
-      mockedFs.writeFile.mockRejectedValue(new Error('Permission denied'));
+      mockFileConfigManager.save.mockRejectedValue(new Error('Failed to save configuration'));
       
-      await expect(configManager.save(mockConfig)).rejects.toThrow('Permission denied');
+      await expect(configManager.save(mockConfig)).rejects.toThrow('Failed to save configuration');
     });
   });
 
   describe('initialize', () => {
     test('initializes configuration with default template', async () => {
-      mockedFs.access.mockRejectedValue(new Error('File not found'));
+      mockFileConfigManager.initialize.mockResolvedValue(undefined);
       mockedFs.writeFile.mockResolvedValue(undefined);
       
       await configManager.initialize();
       
-      expect(mockedFs.writeFile).toHaveBeenCalledTimes(2); // config.json and prompts.yaml
+      expect(mockFileConfigManager.initialize).toHaveBeenCalledWith('default', false);
+      expect(mockedFs.writeFile).toHaveBeenCalledTimes(1); // prompts.yaml
     });
 
     test('throws error when config exists and force is false', async () => {
-      mockedFs.access.mockResolvedValue(undefined);
+      mockFileConfigManager.initialize.mockRejectedValue(new Error('Configuration already exists. Use force=true to overwrite.'));
       
       await expect(configManager.initialize('default', false)).rejects.toThrow(
-        'Configuration already exists. Use --force to overwrite.'
+        'Failed to initialize configuration: Configuration already exists. Use force=true to overwrite.'
       );
     });
 
     test('overwrites existing config when force is true', async () => {
-      mockedFs.access.mockResolvedValue(undefined);
+      mockFileConfigManager.initialize.mockResolvedValue(undefined);
       mockedFs.writeFile.mockResolvedValue(undefined);
       
       await configManager.initialize('default', true);
       
-      expect(mockedFs.writeFile).toHaveBeenCalledTimes(2);
+      expect(mockFileConfigManager.initialize).toHaveBeenCalledWith('default', true);
+      expect(mockedFs.writeFile).toHaveBeenCalledTimes(1);
     });
 
     test('throws error for invalid template', async () => {
-      mockedFs.access.mockRejectedValue(new Error('File not found'));
+      mockFileConfigManager.initialize.mockRejectedValue(new Error("Template 'invalid-template' not found"));
       
       await expect(configManager.initialize('invalid-template')).rejects.toThrow(
-        "Template 'invalid-template' not found"
+        "Failed to initialize configuration: Template 'invalid-template' not found"
       );
     });
   });
 
   describe('getStatus', () => {
     test('returns not initialized status when config does not exist', async () => {
-      mockedFs.access.mockRejectedValue(new Error('File not found'));
+      mockFileConfigManager.exists.mockResolvedValue(false);
       
       const status = await configManager.getStatus();
       
@@ -182,27 +219,23 @@ describe('ConfigManager', () => {
         features: { validation: true, backup: false }
       };
       
-      mockedFs.access.mockImplementation((path) => {
-        const pathStr = String(path);
-        if (pathStr.includes('agent.config.json')) {
-          return Promise.resolve(undefined);
+      mockFileConfigManager.exists.mockResolvedValue(true);
+      mockFileConfigManager.loadMerged.mockResolvedValue(mockConfig);
+      mockFileConfigManager.exists.mockImplementation(async (path?: string) => {
+        if (path === undefined || path === '/mock/global/config.yml' || path === '/mock/local/agent.config.yml' || path === '/test/dir/prompts.yaml') {
+          return true;
         }
-        if (pathStr.includes('prompts.yaml')) {
-          return Promise.resolve(undefined);
-        }
-        return Promise.reject(new Error('File not found'));
+        return false;
       });
-      
-      mockedFs.readFile.mockResolvedValue(JSON.stringify(mockConfig));
       
       const status = await configManager.getStatus();
       
       expect(status.initialized).toBe(true);
-      expect(status.configFiles).toEqual(['agent.config.json', 'prompts.yaml']);
       expect(status.version).toBe('1.0.0');
       expect(status.lastSync).toBe('2023-01-01T00:00:00.000Z');
       expect(status.template).toBe('default');
       expect(status.features).toEqual(['validation']);
+      expect(status.configFiles).toEqual(['/mock/global/config.yml', '/mock/local/agent.config.yml', 'prompts.yaml']);
     });
   });
 });
