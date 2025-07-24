@@ -8,6 +8,7 @@ import {
   ValidationError,
   ValidationWarning
 } from '../types';
+import { FileConfigManager, ConfigFormat } from './file-config';
 
 export const CONFIG_FILE = 'agent.config.json';
 export const PROMPTS_FILE = 'prompts.yaml';
@@ -16,62 +17,62 @@ export const ENVIRONMENT_TYPES = ['development', 'staging', 'production'];
 export class ConfigManager {
   private configPath: string;
   private promptsPath: string;
+  private fileConfigManager: FileConfigManager;
 
-  constructor(baseDir: string = process.cwd()) {
+  constructor(baseDir: string = process.cwd(), format: ConfigFormat = 'yaml') {
     this.configPath = join(baseDir, CONFIG_FILE);
     this.promptsPath = join(baseDir, PROMPTS_FILE);
+    
+    // Initialize enhanced file configuration manager
+    this.fileConfigManager = new FileConfigManager({
+      format,
+      createDirs: true,
+      backup: true,
+      merge: true
+    });
   }
 
   async exists(): Promise<boolean> {
-    try {
-      await fs.access(this.configPath);
-      return true;
-    } catch {
-      return false;
-    }
+    // Check both legacy JSON and new YAML/JSON formats
+    const legacyExists = await this.fileConfigManager.exists(this.configPath);
+    const enhancedExists = await this.fileConfigManager.exists();
+    return legacyExists || enhancedExists;
   }
 
   async load(): Promise<AgentConfig> {
     try {
-      const content = await fs.readFile(this.configPath, 'utf-8');
-      return JSON.parse(content);
+      // Try to load from enhanced file manager first (supports YAML/JSON with merging)
+      return await this.fileConfigManager.loadMerged();
     } catch (error) {
-      throw error;
+      // Fallback to legacy JSON format for backward compatibility
+      try {
+        const content = await fs.readFile(this.configPath, 'utf-8');
+        return JSON.parse(content);
+      } catch (fallbackError) {
+        throw new Error(`Failed to load configuration: ${(error as Error).message}`);
+      }
     }
   }
 
   async save(config: AgentConfig): Promise<void> {
     try {
-      await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
+      await this.fileConfigManager.save(config, undefined, { backup: true });
     } catch (error) {
-      throw error;
+      throw new Error(`Failed to save configuration: ${(error as Error).message}`);
     }
   }
 
   async initialize(template: string = 'default', force: boolean = false): Promise<void> {
-    if (!force && await this.exists()) {
-      throw new Error('Configuration already exists. Use --force to overwrite.');
+    try {
+      // Use the enhanced file manager for initialization
+      await this.fileConfigManager.initialize(template, force);
+      
+      // Create prompts file with template-specific content
+      const templateConfig = this.getTemplate(template);
+      await this.createPromptsFile(templateConfig);
+    } catch (error) {
+      throw new Error(`Failed to initialize configuration: ${(error as Error).message}`);
     }
-
-    const templateConfig = this.getTemplate(template);
-    const config: AgentConfig = {
-      version: '1.0.0',
-      initialized: true,
-      templates: {
-        [template]: templateConfig
-      },
-      sync: {
-        autoSync: false
-      },
-      features: {
-        autoComplete: true,
-        validation: true,
-        backup: false
-      }
-    };
-
-    await this.save(config);
-    await this.createPromptsFile(templateConfig);
   }
 
   async getStatus(): Promise<ConfigStatus> {
@@ -92,26 +93,31 @@ export class ConfigManager {
     }
 
     const config = await this.load();
-    const configFiles = [CONFIG_FILE];
+    const paths = this.getPaths();
+    const configFiles: string[] = [];
     
-    try {
-      await fs.access(this.promptsPath);
+    // Check for various configuration files
+    if (await this.fileConfigManager.exists(paths.global)) {
+      configFiles.push('global config');
+    }
+    if (await this.fileConfigManager.exists(paths.local)) {
+      configFiles.push('local config');
+    }
+    if (await this.fileConfigManager.exists(this.promptsPath)) {
       configFiles.push(PROMPTS_FILE);
-    } catch {
-      // Prompts file doesn't exist
     }
 
-    // Calculate health score
+    // Calculate health score with enhanced features
     const healthScore = this.calculateHealthScore(config, configFiles);
     const { issues, recommendations } = this.getHealthDetails(config);
 
     return {
       initialized: config.initialized,
       configFiles,
-      lastSync: config.sync.lastSync,
+      lastSync: config.sync?.lastSync,
       version: config.version,
-      template: Object.keys(config.templates)[0],
-      features: Object.keys(config.features).filter(key => config.features[key]),
+      template: config.templates ? Object.keys(config.templates)[0] : undefined,
+      features: config.features ? Object.keys(config.features).filter(key => config.features[key]) : [],
       environment: config.environment?.name,
       health: {
         score: healthScore,
@@ -246,61 +252,46 @@ templates:
   }
 
   async validateConfiguration(config?: AgentConfig): Promise<ValidationResult> {
-    const startTime = process.hrtime.bigint();
-    const configToValidate = config || await this.load();
-    const errors: ValidationError[] = [];
-    let rulesApplied = 0;
+    try {
+      // Use enhanced file manager validation first
+      const enhancedValidation = await this.fileConfigManager.validate();
+      
+      // Add custom business logic validation
+      const startTime = process.hrtime.bigint();
+      const configToValidate = config || await this.load();
+      const errors: ValidationError[] = [...enhancedValidation.errors];
+      const warnings: ValidationWarning[] = [...enhancedValidation.warnings];
+      let rulesApplied = enhancedValidation.metadata.rulesApplied;
 
-    // Version validation
-    rulesApplied++;
-    if (!configToValidate.version || !/^\d+\.\d+\.\d+$/.test(configToValidate.version)) {
-      errors.push({
-        field: 'version',
-        message: 'Version must follow semantic versioning (x.y.z)',
-        code: 'INVALID_VERSION',
-        severity: 'error',
-        suggestion: 'Use format like "1.0.0"'
-      });
-    }
-
-    // Template validation
-    rulesApplied++;
-    if (!configToValidate.templates || Object.keys(configToValidate.templates).length === 0) {
-      errors.push({
-        field: 'templates',
-        message: 'At least one template must be configured',
-        code: 'NO_TEMPLATES',
-        severity: 'error',
-        suggestion: 'Add a default template configuration'
-      });
-    }
-
-    // Environment validation
-    if (configToValidate.environment) {
-      rulesApplied++;
-      if (!ENVIRONMENT_TYPES.includes(configToValidate.environment.type)) {
-        errors.push({
-          field: 'environment.type',
-          message: 'Environment type must be development, staging, or production',
-          code: 'INVALID_ENVIRONMENT_TYPE',
-          severity: 'error'
-        });
+      // Additional business rules validation
+      if (configToValidate.environment) {
+        rulesApplied++;
+        if (!ENVIRONMENT_TYPES.includes(configToValidate.environment.type)) {
+          errors.push({
+            field: 'environment.type',
+            message: 'Environment type must be development, staging, or production',
+            code: 'INVALID_ENVIRONMENT_TYPE',
+            severity: 'error'
+          });
+        }
       }
+
+      const durationInMs = Number(process.hrtime.bigint() - startTime) / 1e6;
+
+      return {
+        valid: errors.length === 0,
+        errors,
+        warnings,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          duration: durationInMs + enhancedValidation.metadata.duration,
+          rulesApplied,
+          version: configToValidate.version || '1.0.0'
+        }
+      };
+    } catch (error) {
+      throw new Error(`Validation failed: ${(error as Error).message}`);
     }
-
-    const durationInMs = Number(process.hrtime.bigint() - startTime) / 1e6;
-
-    return {
-      valid: errors.length === 0,
-      errors,
-      warnings: [] as ValidationWarning[],
-      metadata: {
-        timestamp: new Date().toISOString(),
-        duration: durationInMs,
-        rulesApplied,
-        version: configToValidate.version
-      }
-    };
   }
 
   private calculateHealthScore(config: AgentConfig, configFiles: string[]): number {
@@ -378,6 +369,33 @@ templates:
     }
 
     return { issues, recommendations };
+  }
+
+  // Enhanced functionality exposed from file manager
+  async createBackup(): Promise<string> {
+    return await this.fileConfigManager.createBackup();
+  }
+
+  async listBackups(): Promise<Array<{ path: string; created: Date; size: number }>> {
+    return await this.fileConfigManager.listBackups();
+  }
+
+  async restoreFromBackup(backupPath: string): Promise<void> {
+    return await this.fileConfigManager.restoreFromBackup(backupPath);
+  }
+
+  getPaths() {
+    return this.fileConfigManager.getPaths();
+  }
+
+  async convertFormat(targetFormat: ConfigFormat): Promise<void> {
+    const config = await this.load();
+    const paths = this.getPaths();
+    const targetPath = targetFormat === 'yaml' ? 
+      paths.global.replace(/\.json$/, '.yml') : 
+      paths.global.replace(/\.yml$/, '.json');
+    
+    await this.fileConfigManager.save(config, targetPath, { format: targetFormat });
   }
 }
 
