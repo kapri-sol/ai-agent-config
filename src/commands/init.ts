@@ -8,6 +8,7 @@ export const initCommand = new Command()
   .option('-f, --force', 'Force initialization even if configuration already exists')
   .option('-t, --template <type>', 'Initialize with a specific template', 'default')
   .option('--format <format>', 'Configuration file format (yaml|json)', 'yaml')
+  .option('--env <environment>', 'Initialize for specific environment (development|staging|production|test)')
   .action(async (options) => {
     console.log('🚀 Initializing agent configuration...');
     
@@ -22,9 +23,21 @@ export const initCommand = new Command()
       console.error('❌ Invalid format. Use "yaml" or "json".');
       process.exit(1);
     }
+
+    // Validate environment input
+    if (options.env && !['development', 'staging', 'production', 'test'].includes(options.env)) {
+      console.error('❌ Invalid environment. Use "development", "staging", "production", or "test".');
+      process.exit(1);
+    }
     
     console.log(`📋 Template: ${options.template}`);
     console.log(`📄 Format: ${options.format}`);
+    
+    if (options.env) {
+      console.log(`🌍 Environment: ${options.env}`);
+      // Set environment variable for initialization
+      process.env.AGENT_ENV = options.env;
+    }
     
     if (options.force) {
       console.log('🔄 Force mode enabled - overwriting existing configuration');
