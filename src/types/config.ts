@@ -35,7 +35,7 @@ export interface SyncConfig {
  */
 export interface EnvironmentConfig {
   name: string;
-  type: 'development' | 'staging' | 'production';
+type: 'development' | 'staging' | 'production' | 'test';
   variables: { [key: string]: string };
   paths: {
     config: string;

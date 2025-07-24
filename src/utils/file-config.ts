@@ -2,7 +2,8 @@ import * as yaml from 'js-yaml';
 import * as fs from 'fs-extra';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
-import { AgentConfig, ValidationWarning, ValidationResult, ValidationError } from '../types';
+import { AgentConfig, ValidationWarning, ValidationResult, ValidationError, ConfigurationMode } from '../types';
+import { EnvironmentManager, EnvironmentInfo } from './environment';
 
 export type ConfigFormat = 'yaml' | 'json';
 
@@ -28,9 +29,14 @@ export class FileConfigManager {
   private readonly localConfigPath: string;
   private readonly backupDir: string;
   private readonly format: ConfigFormat;
+  private readonly environmentManager: EnvironmentManager;
 
   constructor(options: FileConfigOptions = {}) {
     this.format = options.format || 'yaml';
+    this.environmentManager = new EnvironmentManager({ 
+      baseDir: process.cwd(), 
+      format: this.format 
+    });
     
     // Global config path: ~/.config/aisync/config.yml
     const configDir = join(homedir(), '.config', 'aisync');
@@ -57,6 +63,29 @@ export class FileConfigManager {
       local: this.localConfigPath,
       backup: this.backupDir
     };
+  }
+
+  /**
+   * Get environment-aware configuration paths
+   */
+  getEnvironmentPaths(): Record<string, string> {
+    const environment = this.environmentManager.detectEnvironment();
+    const paths = this.environmentManager.getEnvironmentPaths(environment.mode);
+    
+    return {
+      global: paths.global,
+      local: paths.local,
+      environment: paths.environment,
+      override: paths.override,
+      backup: this.backupDir
+    };
+  }
+
+  /**
+   * Get current environment information
+   */
+  getEnvironmentInfo(): EnvironmentInfo {
+    return this.environmentManager.detectEnvironment();
   }
 
   /**
@@ -127,23 +156,55 @@ export class FileConfigManager {
   }
 
   /**
-   * Load and merge multiple configuration files
-   * Priority: local > global > defaults
+   * Load and merge multiple configuration files with environment awareness
+   * Priority: local override > environment-specific > local > global > defaults
    */
   async loadMerged(defaultConfig?: Partial<AgentConfig>): Promise<AgentConfig> {
+    const environment = this.environmentManager.detectEnvironment();
+    const configPaths = this.environmentManager.getConfigurationPriority(environment.mode);
+    
     let mergedConfig: AgentConfig = defaultConfig as AgentConfig || this.getDefaultConfig();
 
-    // Load global config if exists
-    if (await this.exists(this.globalConfigPath)) {
-      const globalConfig = await this.load(this.globalConfigPath);
-      mergedConfig = this.mergeConfigs(mergedConfig, globalConfig);
+    // Apply environment-specific default configuration
+    const envTemplate = this.environmentManager.createEnvironmentTemplate(environment.mode);
+    mergedConfig = this.mergeConfigs(mergedConfig, envTemplate as AgentConfig);
+
+    // Load configurations in priority order (lowest to highest priority)
+    for (let i = configPaths.length - 1; i >= 0; i--) {
+      const configPath = configPaths[i];
+      if (await this.exists(configPath)) {
+        try {
+          const config = await this.load(configPath);
+          mergedConfig = this.mergeConfigs(mergedConfig, config);
+        } catch (error) {
+          console.warn(`Failed to load configuration from ${configPath}: ${(error as Error).message}`);
+        }
+      }
     }
 
-    // Load local config if exists (higher priority)
-    if (await this.exists(this.localConfigPath)) {
-      const localConfig = await this.load(this.localConfigPath);
-      mergedConfig = this.mergeConfigs(mergedConfig, localConfig);
-    }
+    // Ensure environment information is properly set in the final config
+    const envPaths = this.environmentManager.getEnvironmentPaths(environment.mode);
+    mergedConfig.environment = {
+      ...mergedConfig.environment,
+      name: environment.mode,
+      type: environment.mode,
+      variables: {
+        ...mergedConfig.environment?.variables,
+        ...this.environmentManager.getEnvironmentVariables()
+      },
+      paths: mergedConfig.environment?.paths || {
+        config: envPaths.local,
+        templates: join(process.cwd(), 'templates'),
+        cache: join(homedir(), '.cache', 'aisync'),
+        logs: join(homedir(), '.local', 'share', 'aisync', 'logs')
+      },
+      security: mergedConfig.environment?.security || {
+        encryptionEnabled: environment.mode === 'production',
+        trustedSources: environment.mode === 'production' 
+          ? ['https://api.aisync.dev'] 
+          : ['https://api.aisync.dev', 'http://localhost:*']
+      }
+    };
 
     return mergedConfig;
   }
@@ -518,6 +579,69 @@ export class FileConfigManager {
     };
 
     return baseConfig;
+  }
+
+  /**
+   * Get configuration override status for visualization
+   */
+  async getOverrideStatus(): Promise<{
+    environment: EnvironmentInfo;
+    loadedConfigs: Array<{
+      path: string;
+      exists: boolean;
+      priority: number;
+      source: 'global' | 'local' | 'environment' | 'override';
+      description: string;
+    }>;
+    mergeOrder: string[];
+    finalConfig?: Partial<AgentConfig>;
+  }> {
+    const environment = this.environmentManager.detectEnvironment();
+    const configPaths = this.environmentManager.getConfigurationPriority(environment.mode);
+    const envPaths = this.getEnvironmentPaths();
+    
+    const loadedConfigs = [];
+    const mergeOrder = [];
+
+    // Check each configuration file
+    const pathInfo = [
+      { path: envPaths.global, source: 'global' as const, description: 'Global configuration' },
+      { path: envPaths.local, source: 'local' as const, description: 'Local project configuration' },
+      { path: envPaths.environment, source: 'environment' as const, description: `Environment-specific (${environment.mode})` },
+      { path: envPaths.override, source: 'override' as const, description: 'Local override configuration' }
+    ];
+
+    for (let i = 0; i < pathInfo.length; i++) {
+      const { path, source, description } = pathInfo[i];
+      const exists = await this.exists(path);
+      
+      loadedConfigs.push({
+        path,
+        exists,
+        priority: i + 1,
+        source,
+        description
+      });
+
+      if (exists) {
+        mergeOrder.push(path);
+      }
+    }
+
+    // Get final merged configuration
+    let finalConfig: Partial<AgentConfig> | undefined;
+    try {
+      finalConfig = await this.loadMerged();
+    } catch (error) {
+      console.warn('Failed to load merged configuration for status:', (error as Error).message);
+    }
+
+    return {
+      environment,
+      loadedConfigs,
+      mergeOrder,
+      finalConfig
+    };
   }
 }
 
