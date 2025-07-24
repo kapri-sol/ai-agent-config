@@ -33,39 +33,15 @@ export class ConfigManager {
   }
 
   async exists(): Promise<boolean> {
-    // Check both legacy JSON and new YAML/JSON formats
-    const paths = this.getPaths();
-    const legacyExists = await this.fileConfigManager.exists(this.configPath);
-    const globalExists = await this.fileConfigManager.exists(paths.global);
-    const localExists = await this.fileConfigManager.exists(paths.local);
-    return legacyExists || globalExists || localExists;
+    return await this.fileConfigManager.exists();
   }
 
   async load(): Promise<AgentConfig> {
-    try {
-      // Try to load from enhanced file manager first (supports YAML/JSON with merging)
-      return await this.fileConfigManager.loadMerged();
-    } catch (error) {
-      // Fallback to legacy JSON format for backward compatibility
-      const legacyExists = await this.fileConfigManager.exists(this.configPath);
-      if (legacyExists) {
-        try {
-          const content = await fs.readFile(this.configPath, 'utf-8');
-          return JSON.parse(content);
-        } catch (fallbackError) {
-          throw new Error(`Failed to load legacy configuration: ${(fallbackError as Error).message}`);
-        }
-      }
-      throw new Error(`Failed to load configuration: ${(error as Error).message}`);
-    }
+    return await this.fileConfigManager.loadMerged();
   }
 
   async save(config: AgentConfig, path?: string): Promise<void> {
-    try {
-      await this.fileConfigManager.save(config, path, { backup: true });
-    } catch (error) {
-      throw new Error(`Failed to save configuration: ${(error as Error).message}`);
-    }
+    await this.fileConfigManager.save(config, path);
   }
 
   async initialize(template: string = 'default', force: boolean = false): Promise<void> {
@@ -395,12 +371,7 @@ templates:
   }
 
   async convertFormat(targetFormat: ConfigFormat, path?: string): Promise<void> {
-    const config = await this.load();
-    const targetPath = path || (targetFormat === 'yaml' ? 
-      this.getPaths().local.replace(/\.json$/, '.yml') : 
-      this.getPaths().local.replace(/\.yml$/, '.json'));
-    
-    await this.fileConfigManager.save(config, targetPath, { format: targetFormat });
+    await this.fileConfigManager.convertFormat(targetFormat, path);
   }
 }
 

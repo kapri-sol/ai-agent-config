@@ -236,7 +236,7 @@ describe('ConfigManager', () => {
       expect(status.lastSync).toBe('2023-01-01T00:00:00.000Z');
       expect(status.template).toBe('default');
       expect(status.features).toEqual(['validation']);
-      expect(status.configFiles).toEqual(['global config', 'local config']);
+      expect(status.configFiles).toEqual(['global config', 'local config', 'prompts.yaml']);
     });
   });
 });
